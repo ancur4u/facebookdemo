@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="pageDetails" format="json">
+      <types:shape format="weave" example="getPagedetails.json"><![CDATA[%dw 2.0
+
+type pageDetails = {|
+  data: Array<{|    access_token: String,     category: String,     category_list: Array<{|      id: String,       name: String    |}>, 
+    name: String, 
+    id: String, 
+    tasks: Array<String>
+  |}>, 
+  paging: {|
+    cursors: {|
+      before: String, 
+      after: String
+    |}
+  |}
+|} {"example": "{\\\"data\\\":[{\\\"access_token\\\":\\\"EAAErmddEB0ABAOAXn7ZA65GKFgJkHDOb0UoT4AdltZAMZCbSNug1K6xuYxxUvnnqVcBfcDPmZA1qqhFNi71dqXwQZCZByQLKnk7MZB4YZBkTdqdKAdQXvMjpV0Vh7wDByrZCy2kZA9ZCt0n0AXz31FZAcEnfZCeUUFnZAbtgCELqnZCZBoe2AMbZATOgOo7D70lKIoxGYyVgZD\\\",\\\"category\\\":\\\"Science, technology & engineering\\\",\\\"category_list\\\":[{\\\"id\\\":\\\"297544187300691\\\",\\\"name\\\":\\\"Science, technology & engineering\\\"}],\\\"name\\\":\\\"MuleSoft Demo\\\",\\\"id\\\":\\\"117032213464704\\\",\\\"tasks\\\":[\\\"ANALYZE\\\",\\\"ADVERTISE\\\",\\\"MODERATE\\\",\\\"CREATE_CONTENT\\\",\\\"MANAGE\\\"]}],\\\"paging\\\":{\\\"cursors\\\":{\\\"before\\\":\\\"MTE3MDMyMjEzNDY0NzA0\\\",\\\"after\\\":\\\"MTE3MDMyMjEzNDY0NzA0\\\"}}}"}
+
+]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#c340938a-e5c7-40e1-89e8-b1f10bc217b1">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:variables>
+          <types:variable name="pageDetails" type="pageDetails"/>
+        </types:variables>
+      </types:input-event>
+      <types:output-event>
+        <types:message>
+          <types:payload type="pageDetails"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#eb6540d7-7bf7-4880-8604-88bcd1daf7f2"/>
+</types:mule>

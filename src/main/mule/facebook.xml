@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:request-config name="HTTP_Request_configuration_FB" doc:name="HTTP Request configuration" doc:id="9a9fab9a-a850-4143-aea5-dad70a0feb04">
+		<http:request-connection protocol="HTTPS" host="graph.facebook.com" >
+			<http:authentication >
+				<oauth:authorization-code-grant-type localCallbackConfig="HTTP_Listener_config" localCallbackConfigPath="/oauth2callback" externalCallbackUrl="http://localhost:8081/oauth2callback" localAuthorizationUrl="http://localhost:8081/oauth/authorize" authorizationUrl="https://graph.facebook.com/oauth/authorize" clientId="813678172707888" clientSecret="ecc1cff4ddb3a0aad37dc79bbe08a761" scopes="user_birthday, user_hometown, user_location, user_likes, user_events, user_photos, user_videos, user_friends, user_status, user_tagged_places, user_posts, user_gender, user_link, user_age_range, email, read_insights, publish_video, user_managed_groups, groups_show_list, pages_manage_cta, pages_manage_instant_articles, pages_show_list, read_page_mailboxes, ads_management, ads_read, business_management, pages_messaging, pages_messaging_phone_number, pages_messaging_subscriptions, instagram_manage_comments, instagram_manage_insights, publish_to_groups, groups_access_member_info, leads_retrieval, whatsapp_business_management, attribution_read, pages_read_engagement, pages_manage_metadata, pages_read_user_content, pages_manage_ads, pages_manage_posts, pages_manage_engagement, public_profile, basic_info" tokenUrl="https://graph.facebook.com/oauth/access_token" />
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7fe8bfa2-aeaf-46ee-b3bf-049233582287" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="fbe2c952-f62c-48ff-af37-e84dba2a4135" >
+		<http:request-connection protocol="HTTPS" host="graph.facebook.com" />
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration_video" doc:name="HTTP Request configuration" doc:id="2574bf80-1540-444b-8572-c8a8b11d2f4d" >
+		<http:request-connection protocol="HTTPS" host="graph-video.facebook.com" >
+		</http:request-connection>
+	</http:request-config>
+	<flow name="getUser" doc:id="4b839619-6e03-4f46-b882-8580e1671155" >
+		<http:request method="GET" doc:name="Request" doc:id="ade1142f-c7c9-48c2-8a96-cfff78f0fb89" config-ref="HTTP_Request_configuration_FB" path="/v8.0/me">
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"fields" : "name,email,birthday"
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="c1b80558-12a1-4c50-a933-8bd65a925beb" message="#[payload]" />
+		<set-variable value="#[payload.id]" doc:name="User ID Set Variable" doc:id="34e7e6df-e47f-442b-8956-28fee64a9fcd" variableName="userId" />
+	</flow>
+	<flow name="getPageDetails" doc:id="a5b55890-7c31-45e9-b9f6-09522c424a0c" >
+		<http:request method="GET" doc:name="getPageDetails" doc:id="bdeedcc0-4aa3-41e2-958e-96a2ff397d77" config-ref="HTTP_Request_configuration_FB" path="/{user-id}/accounts" target="pageDetails">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"user-id" : vars.userId
+}]]]></http:uri-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="ee9e424f-e9da-4182-9795-a2f9e2be86a4" message='#["page details: ": payload]' />
+		<ee:transform doc:name="Transform Message" doc:id="c340938a-e5c7-40e1-89e8-b1f10bc217b1">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	data: vars.pageDetails.data map ( datum , indexOfDatum ) -> {
+		access_token: datum.access_token,
+		category: datum.category,
+		//category_list: datum.category_list map ( categorylist , indexOfCategorylist ) -> {
+		//	id: categorylist.id,
+		//	name: categorylist.name
+		//},
+		name: datum.name,
+		id: datum.id
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="117032213464704" doc:name="page id Set Variable" doc:id="fe19a0da-01c6-4ef0-a071-66e10ea997a9" variableName="page-id"/>
+	</flow>
+	<flow name="getUserDetails" doc:id="2e4e757c-18f5-42bc-ac81-5d3a874be6e0" >
+		<http:listener doc:name="Listener" doc:id="3ff2a8a0-7945-438d-b629-b8ff3d81e6a6" config-ref="HTTP_Listener_config" path="/fb"/>
+		<flow-ref doc:name="getUser Flow Reference" doc:id="0b57ac25-6331-4c53-9447-ae553050fb26" name="getUser" />
+		<flow-ref doc:name="Flow Reference-getPageDetails" doc:id="221da30b-1e68-45ef-8ca6-5ea353a6fdc1" name="getPageDetails" />
+	</flow>
+	<flow name="publishtoFBPage" doc:id="267d9997-e3c1-495a-9bff-3dd8f7c200bd" >
+		<http:listener doc:name="Listener" doc:id="28589d77-4a05-4517-a243-2554d6c3edb3" config-ref="HTTP_Listener_config" path="/publishOnFBPage" allowedMethods="POST"/>
+		<set-variable value="#[payload.messageText]" doc:name="incoming PayloadSet Variable" doc:id="b1197f57-7fe5-4c75-acf9-20fed83bc798" variableName="incomingPayload"/>
+		<http:request method="GET" doc:name="Request" doc:id="1cfed01a-2e1b-414e-9762-d99c5b68592d" config-ref="HTTP_Request_configuration" path="/{page-id}?fields=access_token">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"page-id" : "117032213464704"
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"access_token" : "EAALkCTZAyHDABANB7IKNjWhwI7HBJixQqaz6ADUEmlwwgnUz0rWy0zZC14LtmEGOA2cZAZB7x1qfMqcsGGGUAULeK7SriR9vHZBa8vQsXGkqbXEBT3GmvxYGnD34hJS9ym8LH3oQCxn6gjdEzcEt2AJdh6ZBnIBKQNz2T11hTRZBscGngSygT7mAe8oFEt2IkQZD"
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="93da5316-bd5b-4777-af23-f1811c8b9a5f" message="#[payload]"/>
+		<set-variable value="#[payload.access_token]" doc:name="page-access-token Set Variable" doc:id="ec4be6e1-b0d2-4c6c-aee5-91c00c2a36a4" variableName="page_access_token"/>
+		<set-variable value="#[payload.id]" doc:name="Page id Set Variable" doc:id="cd0c7f30-8b54-4c53-ba95-a4c904121b3d" variableName="page_id"/>
+		<http:request method="POST" doc:name="Publish to FB page Request" doc:id="18a4d895-7919-4bac-9027-f6ce163cd2c6" config-ref="HTTP_Request_configuration" path="/{page-id}/feed">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"page-id" : vars.page_id
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"message" : vars.incomingPayload,
+	"access_token" : vars.page_access_token
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="641f1716-ff8d-4c02-b4e0-94e5ff6eacd0" message="#[payload]"/>
+	</flow>
+	<flow name="getPageFeeds" doc:id="d1efc7c9-0f45-4c8d-b57b-a76d18a74574" >
+		<http:listener doc:name="Listener" doc:id="6e70099f-1e97-4a2a-a204-96d83d36f935" config-ref="HTTP_Listener_config" path="/getpagefeeds"/>
+		<http:request method="GET" doc:name="Request" doc:id="d28245a0-b2c9-44ea-9b51-415abbeaf0a3" config-ref="HTTP_Request_configuration" path="/{page-id}/feed">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"page-id" : "117032213464704"
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"access_token" : "EAALkCTZAyHDABAJbpkdlmIZBkYoRIZAc3r46tNhwsZC05uHnsE6YZByUn0gr41AWRNczgjkrL1bqAwoeTU80acaM8Ei7JZB26pHnhusxnRJSNjgB2saoPRkMnvzvl7SgShPReELeRqJ5lEbudYWZBX8Tn1IGCNcaP3r42IW1Q0jZBrZAuJ83fAHCdgR9nV2AnOywZD"
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="8d0e07e4-20e9-449b-a156-322520385e1f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="eee4f7fb-8a88-4c0f-badd-e783c28a3ce6" message="#[payload]"/>
+	</flow>
+	<flow name="postPhotoToFBPage" doc:id="1f883879-13c2-4056-8cdd-93119efbf391" >
+		<http:listener doc:name="Listener" doc:id="cb75da44-e735-4df5-9881-19e0df9dfd8c" config-ref="HTTP_Listener_config" path="/postPhoto" allowedMethods="POST"/>
+		<logger level="INFO" doc:name="Logger" doc:id="02ab9b4f-5b93-4c32-8ca5-e1c0ddc32785" message='#["Post photo to FB page: ": payload]'/>
+		<http:request method="POST" doc:name="Request" doc:id="b3aa345f-e61a-43d6-b5ac-16df1f232105" config-ref="HTTP_Request_configuration" path="/{page-id}/photos">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"page-id" : "117032213464704"
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"url" : payload.url,
+	"access_token" : "EAALkCTZAyHDABANB7IKNjWhwI7HBJixQqaz6ADUEmlwwgnUz0rWy0zZC14LtmEGOA2cZAZB7x1qfMqcsGGGUAULeK7SriR9vHZBa8vQsXGkqbXEBT3GmvxYGnD34hJS9ym8LH3oQCxn6gjdEzcEt2AJdh6ZBnIBKQNz2T11hTRZBscGngSygT7mAe8oFEt2IkQZD"
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="5d48ec0f-021d-4e4d-9b9b-bd912589bc17" message='#["Photo posted to FB page:" : payload]'/>
+	</flow>
+	<flow name="commentOnaPost" doc:id="9553743d-74ac-41bf-a6d2-7977f49c4432" >
+		<http:listener doc:name="Listener" doc:id="9adce14a-96e5-413a-8978-04170f4e56d8" config-ref="HTTP_Listener_config" path="/comment" allowedMethods="POST"/>
+		<logger level="INFO" doc:name="Logger" doc:id="4abe889c-7b41-4d12-9524-dbb57b09c668" message='#["comment on a post:" :payload]'/>
+		<http:request method="POST" doc:name="Request" doc:id="8609eed0-3991-47fc-8157-6034fcafbfd1" config-ref="HTTP_Request_configuration" path="/{post-id}/comments">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"post-id" : payload.post_id
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"message" : payload.comments,
+	"access_token" : "EAALkCTZAyHDABANB7IKNjWhwI7HBJixQqaz6ADUEmlwwgnUz0rWy0zZC14LtmEGOA2cZAZB7x1qfMqcsGGGUAULeK7SriR9vHZBa8vQsXGkqbXEBT3GmvxYGnD34hJS9ym8LH3oQCxn6gjdEzcEt2AJdh6ZBnIBKQNz2T11hTRZBscGngSygT7mAe8oFEt2IkQZD"
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="a7c0e516-2f8d-43a6-ae46-58acca3c69cf" message='#["Commented on post:": payload]'/>
+	</flow>
+</mule>
